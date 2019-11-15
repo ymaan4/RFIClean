@@ -30,3 +30,4 @@ install:$(BINDIR)/rficlean
 clean:
 	rm -f $(ODIR)/*.o *~ core
 
+
