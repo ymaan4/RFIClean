@@ -4,7 +4,8 @@
 #include "header.h"
 #include <fftw3.h>
 long int nsamp,naddc,naddt,redplan[128],totsamp,nvar,tot_now, psrif,psrnf, *psrifs, psrfbins;
-int headerless,obits,iflip,nred, iwhite,nints,nsub,maxhist,numhist,nsubchans,tnorm,fnorm,igetstat,nharm,pcl,nsect,zerodm;
+long byte_offset;
+int headerless,obits,iflip,nred, iwhite,nints,nsub,maxhist,numhist,nsubchans,tnorm,fnorm,igetstat,nharm,pcl,nsect,zerodm,bl_start,nblocks;
 char inpfile[128], outfile[128], gminfofile[128],gmhdrfile[128],psfile[100];
 FILE *input, *output, *gminfo, *gmhdr;
 double tempra,tempdec, psrf, *last_mspec, *wrms, *wmean, *ai;
@@ -36,7 +37,8 @@ char *headername (char *filename) ;
 char *telescope_name (int telescope_id) ;
 char tempo_site(int telescope_id) ;
 double mjd(int year, int month, int day) ;
-int read_block(FILE *input, int nbits, float *block, int nread) ;
+//int read_block(FILE *input, int nbits, float *block, int nread) ;
+int read_block(FILE *input, int nbits, float *block, int nread, long byte_offset) ;
 int read_header(FILE *inputfile) ;
 int read_gmheader(char gminfofile[], char gmhdrfile[]) ;
 int typeof_inputdata(FILE *fptr, char *filename) ;

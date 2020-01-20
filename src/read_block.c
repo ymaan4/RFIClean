@@ -8,13 +8,15 @@
 #include "rficlean.h"
 
 
-int read_block(FILE *input, int nbits, float *block, int nread) /*includefile*/
+int read_block(FILE *input, int nbits, float *block, int nread, long byte_offset) /*includefile*/
+//int read_block(FILE *input, int nbits, float *block, int nread) /*includefile*/
 {
   int i,j,k,s1,s2,s3,s4,iread;
   unsigned char *charblock;
   unsigned short *shortblock;
   long seed=0;
 
+  fseek(input, byte_offset, SEEK_SET);
   /* decide how to read the data based on the number of bits per sample */
   switch(nbits) {
   case 1:

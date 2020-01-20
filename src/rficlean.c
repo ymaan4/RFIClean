@@ -46,7 +46,7 @@ void rficlean_help()
   puts("usage: rficlean -{options} {input-filename} \n");
   puts("options:\n");
   puts("       <filename>   - filterbank data file (def=stdin)");
-  puts("-t     <numsamps>   - number of time samples to use for periodicity search (def=4096)");
+  puts("-t     <numsamps>   - number of time samples in a block (for periodicity search; def=4096)");
   puts("-ft    <thres.>     - specify threshold for FT-cleaning (def=6.0)");
   puts("-st    <thres.>     - specify threshold for timeseries-cleaning (def=10.0)");
   puts("-rt    <thres.>     - specify threshold for chan-diff cleaning (def=4.0)");
@@ -66,6 +66,8 @@ void rficlean_help()
   puts("-psrfbins <Nb>      - Nbins (on either side) of the fundamental & harmonic");
   puts("                      frequencies to be protected (def=2)");
   puts("-headerless         - do not broadcast resulting header (def=broadcast)");
+  puts("-bst   <bstart>     - Starting block number to be processed (def=1, i.e. start of file)");
+  puts("-nbl   <nblocks>    - No. of blocks to be processed (def=till EoF)");
   puts("");
 }
 
@@ -123,6 +125,9 @@ void main (int argc, char *argv[])
   iwhite = 0;
   psrf = 1000000.0;
   psrfbins = 2;
+  bl_start = 1;
+  nblocks  = 9999999;
+  byte_offset = 0;
   
   strcpy(inpfile,"dummy98151");
   strcpy(outfile,"dummy98151");
@@ -145,6 +150,8 @@ void main (int argc, char *argv[])
 	pcl=1;
       } else if (strings_equal(argv[i],"-zerodm")) {
 	zerodm=1;
+      } else if (strings_equal(argv[i],"-force")) {
+	forcefthresh=-100;
       } else if (strings_equal(argv[i],"-nharm")) {
 	i++;
 	nharm=atoi(argv[i]);
@@ -188,6 +195,17 @@ void main (int argc, char *argv[])
       } else if (strings_equal(argv[i],"-psrf")) {
 	i++;
 	psrf=atof(argv[i]);
+      } else if (strings_equal(argv[i],"-bst")) {
+	i++;
+	bl_start=atoi(argv[i]);
+        if(bl_start<1) {
+          printf("*** Start block number (-bst) not valid! ***\n\n");
+	  rficlean_help();
+          exit(0);
+        }
+      } else if (strings_equal(argv[i],"-nbl")) {
+	i++;
+	nblocks=atoi(argv[i]);
       } else if (help_required(argv[1])) {
 	rficlean_help();
 	exit(0);
@@ -212,7 +230,7 @@ void main (int argc, char *argv[])
   }
 
   // some sanity checks
-  if (psrf<1000000.0 && fthresh<4.0) fthresh=4.0;
+  if (psrf<1000000.0 && fthresh<4.0 && forcefthresh>0) fthresh=4.0;
 
   /* read in the header to establish what the input data are... */
   if (nifs>1){
@@ -238,6 +256,7 @@ void main (int argc, char *argv[])
     data_type=1;
     totsamp = (long long) (long double) (sizeof_file(inpfile))/ (((long double) nbits) / 8.0)
                  /(long double) nchans;
+    byte_offset = (long) ((long)(bl_start-1)*naddt*nchans*(nbits/8.0));
   }
   else if ((headersize=read_header(input))) {
     printf (" Reading the sigproc-file header... \n");
@@ -265,7 +284,7 @@ void main (int argc, char *argv[])
       bcast_header();
       printf (" Done! \n");
     }
-    //if (!headerless) bcast_header();
+    byte_offset = (long)(headersize + ((long)(bl_start-1)*naddt*nchans*(nbits/8.0)));
   } else {
     error_message("input data file is of unknown origin!!!");
   }
