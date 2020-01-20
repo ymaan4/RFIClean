@@ -4,7 +4,7 @@
  *                   intitialization etc.
  * 
  * Yogesh Maan <maan@astron.nl>   2018
- * 
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@ void rficlean_data(FILE *input, FILE *output)
   unsigned short *sblock;
   unsigned char  *cblock;
   int nsaved=0,opened=0;
-  long int ns,nsblk,nout,iter,i,j,k, jt1, jt2;
+  long int ns,nsblk,nout,iter,i,j,k, jt1, jt2, iblock;
   long int itemp, isum, nsize, istart, ii, jj, kk, n0;
 
   last_tvar = -1.0;
@@ -149,7 +149,10 @@ void rficlean_data(FILE *input, FILE *output)
   /* main loop */
   printf (" Now rfiClean-ing (and 0-DM cleaning & downsampling, if asked for), and writing out the data...\n \n");
   istart = 0;
-  while ((ns=read_block(input,nbits,fblock,nsblk))>0) {
+  iblock = 0;
+  while ((ns=read_block(input,nbits,fblock,nsblk,byte_offset))>0 && iblock<nblocks) {
+    byte_offset = byte_offset + (long) (naddt*nchans*(nbits/8.0));
+    iblock = iblock + 1;
     n0 = ns/nchans;
     if(n0<naddt){
       jj = naddt*nchans;
