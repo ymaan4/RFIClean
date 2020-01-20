@@ -1,5 +1,5 @@
 # rfiClean
-#####Mitigation of periodic and spiky RFI from filterbank data.
+#### Mitigation of periodic and spiky RFI from filterbank data.
 
 rfiClean was primarily designed to efficiently search and mitigate
 periodic RFI from GMRT time-domain data. Over the time, rfiClean has evolved
