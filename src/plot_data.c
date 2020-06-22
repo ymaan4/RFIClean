@@ -237,7 +237,7 @@ void plot_data(char outdev[])
         cpgswin(xl, xh, yl, yh);
         cpgbox("BCNLST", 0.0, 0, "BNST", 0.0, 0);
         //cpgbox("", 0.0, 0, "CST", 0.0, 0);
-        cpgmtxt("B", 2.6, 0.5, 0.5, "Fluc. Frequency (Hz)");
+        cpgmtxt("B", 2.6, 0.5, 0.5, "Fourier Frequency (Hz)");
         cpgmtxt("L", 2.1, 0.5, 0.5, "Radio Frequency (MHz)");
         /* Label */
         left = lm + 3.0 * ft + 4.0 * tt;
@@ -324,7 +324,7 @@ void plot_data(char outdev[])
         cpgbin(naddt/2, xarr, yarr, 1);
         //for (i=0;i<naddt/2;i++) printf("%f  %f\n",xarr[i],yarr[i]);
         cpgbox("CMLST", 0.0, 0, "", 0.0, 0);
-        cpgmtxt("T", 1.8, 0.5, 0.5, "Fluc. Frequency (Hz)");
+        cpgmtxt("T", 1.8, 0.5, 0.5, "Fourier Frequency (Hz)");
      /*=======================================================*/
 
      /*==== Chan-reject stats ==========================*/

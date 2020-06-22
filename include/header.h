@@ -15,6 +15,6 @@ double analog_power[2];
 
 /* added frequency table for use with non-contiguous data */
 //double frequency_table[4096]; /* note limited number of channels */
-double frequency_table[8192]; /* note limited number of channels */
+double frequency_table[32768]; /* note limited number of channels */
 //double frequency_table[16384]; /* note limited number of channels */
 long int npuls; /* added for binary pulse profile format */
