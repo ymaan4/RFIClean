@@ -14,7 +14,13 @@ void get_string(FILE *inputfile, int *nbytes, char string[]) /* includefile */
   strcpy(string,"ERROR");
   fread(&nchar, sizeof(int), 1, inputfile);
   if (feof(inputfile)) exit(0);
-  if (nchar>80 || nchar<1) return;
+  if (nchar>80 || nchar<1){
+    printf("\nnchar: %d ; more than allowed limit of 80.\n",nchar);
+    *nbytes=sizeof(int);
+    fread(string, 79, 1, inputfile);
+    printf("Partial string: '%s'\n",string);
+    return;
+  }
   *nbytes=sizeof(int);
   fread(string, nchar, 1, inputfile);
   string[nchar]='\0';

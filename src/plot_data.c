@@ -23,12 +23,17 @@ float vmax(float *vec, int n)
   return (maxvalue);
 }
 
-
-
-void plot_data(char outdev[])
+struct headrecord
 {
-  char plotdev[100];
-  int i,j,k,npt, i1,i2,j1,j2;
+   long int bl,totalsamp;
+   int nchn,numints;
+   double sampt,fchan1,chanwidth,startmjd;
+};
+
+void plot_data(char outdev[], int wpout)
+{
+  char plotdev[100], plotout[100]={ '\0' };
+  int i,j,k,n, npt, i1,i2,j1,j2;
   long int ntot;
   float *xarr, *yarr, *fcstat;
   double *tmparr;
@@ -38,6 +43,7 @@ void plot_data(char outdev[])
   float tt, ft, th, fh;   /* thin and fat thicknesses and heights */
   float lm, rm, tm, bm;   /* LRTB margins */
   int ii, mincol, maxcol, numcol;
+  struct headrecord head;
 
   npt = maxhist*nsub;
   ntot = nchans*naddt;
@@ -48,8 +54,41 @@ void plot_data(char outdev[])
   //sprintf(plotdev, "%s/CPS", plotdev);
   strcpy(plotdev, outdev);
 
+  /*-----------------------------------------------------------*/
+  /* write the plot data out, if asked for */
+  if (wpout>0){
+      n = strlen(outdev);
+      //printf("\n %d %c %c %s\n",n,outdev[n-2],outdev[n-1],outdev);
+      if(outdev[n-2]=='p' && outdev[n-1]=='s'){
+        strncpy(plotout, outdev, n-2);
+        strcat(plotout, "pdat");
+      } else {
+        strcpy(plotout,"abc.pdat");
+      }
+      printf ("\nPlot data will be written in: %s\n", plotout);
+  
+      FILE *optr;
+      optr = fopen(plotout,"wb");
+      //fprintf(optr,"%ld  %d  %ld  %f ",naddt,nchans,ntot,tsamp);
+      //fprintf(optr,"%f  %f   %f ",fch1,foff,(fch1+nchans*foff));
+      head.bl = naddt;
+      head.totalsamp = totsamp;
+      head.nchn = nchans;
+      head.numints = nints;
+      head.sampt = tsamp;
+      head.fchan1 = fch1;
+      head.chanwidth = foff;      
+      head.startmjd = tstart;
+      fwrite(&head,sizeof(head),1,optr);
+      fwrite(chanstat,sizeof(float),nchans,optr);
+      fwrite(fftstat,sizeof(float),ntot,optr);
+      fclose(optr);
+  }
+  /*-----------------------------------------------------------*/
+
 
   /* Open and prep the device */
+  strcat(plotdev,"/CPS");
   cpgopen(plotdev);
   cpgpap(10.25, 8.5 / 11.0);
   cpgpage();
@@ -237,7 +276,7 @@ void plot_data(char outdev[])
         cpgswin(xl, xh, yl, yh);
         cpgbox("BCNLST", 0.0, 0, "BNST", 0.0, 0);
         //cpgbox("", 0.0, 0, "CST", 0.0, 0);
-        cpgmtxt("B", 2.6, 0.5, 0.5, "Fluc. Frequency (Hz)");
+        cpgmtxt("B", 2.6, 0.5, 0.5, "Fourier Frequency (Hz)");
         cpgmtxt("L", 2.1, 0.5, 0.5, "Radio Frequency (MHz)");
         /* Label */
         left = lm + 3.0 * ft + 4.0 * tt;
@@ -324,7 +363,7 @@ void plot_data(char outdev[])
         cpgbin(naddt/2, xarr, yarr, 1);
         //for (i=0;i<naddt/2;i++) printf("%f  %f\n",xarr[i],yarr[i]);
         cpgbox("CMLST", 0.0, 0, "", 0.0, 0);
-        cpgmtxt("T", 1.8, 0.5, 0.5, "Fluc. Frequency (Hz)");
+        cpgmtxt("T", 1.8, 0.5, 0.5, "Fourier Frequency (Hz)");
      /*=======================================================*/
 
      /*==== Chan-reject stats ==========================*/

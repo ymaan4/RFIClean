@@ -105,11 +105,12 @@ void print_version(char *program, char *argument)
 
 void main (int argc, char *argv[])
 {
-  int i, nc, headersize, headerless=0,gm=0;
+  int i, ibits, nc, headersize, headerless=0,gm=0;
   char string[80];
 
   /* set up default global variables */
   obits=headerless=naddt=nsamp=0;
+  ibits=0;
   fthresh = 6.0;
   forcefthresh = 1000.0;
   rthresh = 4.0;
@@ -159,6 +160,9 @@ void main (int argc, char *argv[])
 	/* get and open file for output */
         strcpy(outfile,argv[++i]);
 	output=fopen(outfile,"wb");
+      } else if (strings_equal(argv[i],"-ibits")) {
+        i++;
+        ibits=atoi(argv[i]);
       } else if (strings_equal(argv[i],"-T")) {
 	i++;
 	nsamp=atoi(argv[i]); 
@@ -246,6 +250,7 @@ void main (int argc, char *argv[])
     printf ("\n Reading the GMRT header & time-stamp file...\n");
     read_gmheader(gminfofile, gmhdrfile);
     if (naddt <= 1) naddt=4096;
+    if (ibits > 0) nbits=ibits;
     if (obits == 0) obits=nbits;
     if( nsamp>0) tsamp = tsamp*nsamp ; 
     if (!headerless) {
@@ -270,6 +275,8 @@ void main (int argc, char *argv[])
     case 2:
       nchans=1;
       break;
+    case 6:
+      break;
     default:
       error_message("ERROR: Input data to rficlean is not in filterbank format");
       break;
@@ -292,5 +299,6 @@ void main (int argc, char *argv[])
   /* finally clean and output the data */
   rficlean_data(input,output);
 
+  printf("\n");
   exit(0);
 }
