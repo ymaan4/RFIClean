@@ -19,7 +19,7 @@ void rficlean_data(FILE *input, FILE *output)
   float *fblock,min,max,hpower,realtime,fsaved[2], *ts0dm, atemp;
   unsigned short *sblock;
   unsigned char  *cblock;
-  int nsaved=0,opened=0;
+  int nsaved=0,opened=0, wpout=10;
   long int ns,nsblk,nout,iter,i,j,k, jt1, jt2, iblock;
   long int itemp, isum, nsize, istart, ii, jj, kk, n0;
 
@@ -34,7 +34,7 @@ void rficlean_data(FILE *input, FILE *output)
   nsub = 1;
   nsubchans = nchans/nsub ;
   strcpy(plotdevice, psfile);
-  strcat(plotdevice,"/CPS");
+  ////strcat(plotdevice,"/CPS");
   nsize = naddt;
   if(nsize < nchans) nsize = nchans;
   nsize = 2*nsize;
@@ -244,8 +244,11 @@ void rficlean_data(FILE *input, FILE *output)
   printf (" Data rfiClean-ed and written out! \n\n");
   printf (" Now making diagnostic plots ... ");
 
-  plot_data(plotdevice);
+  plot_data(plotdevice,wpout);
   printf (" Done! \n ");
+
+  fclose(input);
+  fclose(output);
 
   fftw_destroy_plan ( fplan );
   fftw_destroy_plan ( bplan );

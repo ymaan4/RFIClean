@@ -299,5 +299,6 @@ void main (int argc, char *argv[])
   /* finally clean and output the data */
   rficlean_data(input,output);
 
+  printf("\n");
   exit(0);
 }

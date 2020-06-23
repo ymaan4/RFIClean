@@ -27,7 +27,7 @@ void bcast_header();
 void rficlean_data(FILE *input, FILE *output);
 float vmax(float *vec, int n);
 float vmin(float *vec, int n);
-void plot_data(char outdev[]);
+void plot_data(char outdev[], int wpout);
 
 /* include these from sigproc-4.3 */
 void slaCldj ( int iy, int im, int id, double *djm, int *j );
