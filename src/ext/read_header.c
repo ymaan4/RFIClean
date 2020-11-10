@@ -162,7 +162,8 @@ int read_gmheader(char gminfofile[], char gmhdrfile[]) /* includefile */
   int expecting_source_name=0; 
   int hh,mm,day,month,year,nyear,nday,istat;
   double signed_bwidth,bwidth;
-  double seconds,mjd_day,mjd_fracday;
+  long double seconds,mjd_fracday;
+  double mjd_day;
   FILE *infofile,*timefile;
 
   infofile = fopen(gminfofile,"rb");
@@ -191,14 +192,14 @@ int read_gmheader(char gminfofile[], char gmhdrfile[]) /* includefile */
 
   timefile = fopen(gmhdrfile,"rb");
   fscanf(timefile, "%s %s %s %s\n", string,string,string,string);
-  fscanf(timefile, "%s %s %d:%d:%lf  \n", str1,str2,&hh,&mm,&seconds);
+  fscanf(timefile, "%s %s %d:%d:%Lf  \n", str1,str2,&hh,&mm,&seconds);
   fscanf(timefile, "%s  %d:%d:%d  \n", str1,&day,&month,&year);
   fclose(timefile);
 
   slaCldj(year,month,day, &mjd_day, &istat);
   mjd_fracday = (hh + (mm + (seconds / 60.0)) / 60.0) / 24.0;
   tstart = mjd_day + mjd_fracday - 5.5/24.0 ;  // correct for 5.5 hours diff between IST and UT
-  //printf("mjd_day, mjd_fracday, tstart  %lf  %lf  %.12lf\n",mjd_day, mjd_fracday, tstart);
+  //printf("mjd_day, mjd_fracday, tstart  %lf  %.15Lf  %.15lf\n",mjd_day, mjd_fracday, tstart);
 
   return 1;
 }
