@@ -26,6 +26,7 @@ in a file.
 
 
 
-If you find RFIClean useful, it would be great if you would cite the following paper that describes the underlying methods in detail: https://arxiv.org/abs/2012.11630 . Thanks!
+#
+If you find RFIClean useful, it would be great if you could cite the following paper that describes the underlying method in detail: https://arxiv.org/abs/2012.11630 . Thanks!
 
 Yogesh Maan  <ymaan4[@]gmail.com>
