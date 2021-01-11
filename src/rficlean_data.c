@@ -12,8 +12,10 @@
 #include <math.h>
 #include "rficlean.h"
 #include <fftw3.h>
-#include <omp.h>
 #include <time.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 void rficlean_data(FILE *input, FILE *output)
 {

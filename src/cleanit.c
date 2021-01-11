@@ -11,7 +11,9 @@
 #include <math.h>
 #include "rficlean.h"
 #include <fftw3.h>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 //--------------------------------------------------------------
 int all_samef(double *arr, long int np)
