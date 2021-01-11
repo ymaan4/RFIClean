@@ -67,16 +67,19 @@ void rficlean_data(FILE *input, FILE *output)
   psrifs = (long int *) malloc(sizeof(long int)*(naddt));
 
   #ifdef _OPENMP
+  int max_threads = omp_get_max_threads();
   if (fftw_init_threads()) fftw_plan_with_nthreads(omp_get_max_threads());
+  #else
+  int max_threads = 1;
   #endif
 
-  chandata = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-  in = (fftw_complex**) malloc (omp_get_max_threads() * sizeof(fftw_complex*));
-  out = (fftw_complex**) malloc (omp_get_max_threads() * sizeof(fftw_complex*));
-  fplan = (fftw_plan*) malloc (omp_get_max_threads() * sizeof(fftw_plan));
-  bplan = (fftw_plan*) malloc (omp_get_max_threads() * sizeof(fftw_plan));
-  ai = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-  for (i=0; i<omp_get_max_threads(); i++) {
+  chandata = (double **) malloc(max_threads * sizeof(double *));
+  in = (fftw_complex**) malloc (max_threads * sizeof(fftw_complex*));
+  out = (fftw_complex**) malloc (max_threads * sizeof(fftw_complex*));
+  fplan = (fftw_plan*) malloc (max_threads * sizeof(fftw_plan));
+  bplan = (fftw_plan*) malloc (max_threads * sizeof(fftw_plan));
+  ai = (double **) malloc(max_threads * sizeof(double *));
+  for (i=0; i<max_threads; i++) {
     chandata[i] = (double *) malloc(nsize * sizeof(double));
     ai[i] = (double *) malloc(nsize * sizeof(double));
     in[i] = fftw_malloc ((naddt+5) * sizeof(fftw_complex));
@@ -104,9 +107,9 @@ void rficlean_data(FILE *input, FILE *output)
   nred = iter+1;
   // wmean = (double *) malloc((nred)*sizeof(double));
   // wrms = (double *) malloc((nred)*sizeof(double));
-  wmean = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-  wrms = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-  for (i=0; i<omp_get_max_threads(); i++) {
+  wmean = (double **) malloc(max_threads * sizeof(double *));
+  wrms = (double **) malloc(max_threads * sizeof(double *));
+  for (i=0; i<max_threads; i++) {
     wmean[i] = (double *) malloc(nred * sizeof(double));
     wrms[i] = (double *) malloc(nred * sizeof(double));
   }
@@ -317,7 +320,7 @@ void rficlean_data(FILE *input, FILE *output)
   free(wt);
   free(coff);
 
-  for (i=0; i<omp_get_max_threads(); i++) {
+  for (i=0; i<max_threads; i++) {
     fftw_free (in[i]);
     fftw_free (out[i]);
     fftw_destroy_plan ( fplan[i] );
@@ -337,12 +340,13 @@ void rficlean_data(FILE *input, FILE *output)
   free (chandata);
 
   FILE *file_timing = fopen("timing.csv", "a+");
-  fprintf(file_timing, "%d,%d,%d,%.3f,%.3f\n",
+  fprintf(file_timing, "%s,%d,%d,%d,%.3f,%.3f\n",
+    inpfile,
     naddt,
-    omp_get_max_threads(),
+    max_threads,
     time(NULL) - s,
-    ((double) clock() - t_global) / (CLOCKS_PER_SEC) / (double) omp_get_max_threads(),
-    ((double) t_function_sum / (i_function * CLOCKS_PER_SEC)) / (double) omp_get_max_threads()
+    ((double) clock() - t_global) / (CLOCKS_PER_SEC) / (double) max_threads,
+    ((double) t_function_sum / (i_function * CLOCKS_PER_SEC)) / (double) max_threads
   );
   // fprintf(file_timing, "%s,%d,%d\n", time_section, -1, time(NULL) - s);
   fclose(file_timing);
