@@ -1,16 +1,19 @@
 /*
  * cleanit  --- the actual cleaning/processing of data.
- * 
- * 
+ *
+ *
  * Yogesh Maan <maan@astron.nl>   2018.
- * 
- * 
+ *
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "rficlean.h"
 #include <fftw3.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 //--------------------------------------------------------------
 int all_samef(double *arr, long int np)
@@ -133,7 +136,15 @@ void fftclean(fftw_complex *in, fftw_complex *out, long int npts, int ioff)
 
   nfft = npts ;
   nfft2 = nfft/2;
-  fftw_execute ( fplan );
+
+  #ifdef _OPENMP
+  int thread_num = omp_get_thread_num();
+  #else
+  int thread_num=0;
+  #endif
+
+  fftw_execute ( fplan[thread_num] );
+
   anfft = (double)nfft;
   for (i=0;i<nfft;i++) {
       in[i][0] = out[i][0];
@@ -145,40 +156,40 @@ void fftclean(fftw_complex *in, fftw_complex *out, long int npts, int ioff)
     for (ii=0;ii<nred;ii++){
       kk = redplan[ii];
       for (j=0;j<kk;j++){
-        ai[j] = out[k][1];  // imaginary part
+        ai[thread_num][j] = out[k][1];  // imaginary part
         k++;
       }
-      robust_meanrms(ai,kk);
-      wmean[ii] = ai[kk];
-      wrms[ii] = ai[kk+1];
+      robust_meanrms(ai[thread_num],kk);
+      wmean[thread_num][ii] = ai[thread_num][kk];
+      wrms[thread_num][ii] = ai[thread_num][kk+1];
     }
 
   }    // end of block for whitened estimates of mean,rms
   else {
     k = nfft-1;
-    for (i=0;i<k;i++) ai[i]=out[i+1][1];  // exclude DC
-    ai[k] = ai[k+1] = 0.0;
-    robust_meanrms(ai,k);
+    for (i=0;i<k;i++) ai[thread_num][i]=out[i+1][1];  // exclude DC
+    ai[thread_num][k] = ai[thread_num][k+1] = 0.0;
+    robust_meanrms(ai[thread_num],k);
     for (ii=0;ii<nred;ii++){
-      wmean[ii] = ai[k];
-      wrms[ii] = ai[k+1];
+      wmean[thread_num][ii] = ai[thread_num][k];
+      wrms[thread_num][ii] = ai[thread_num][k+1];
     }
   }  // end of no-whitening block
 
   // now the actual cleaning
   i1 = 1;  // exclude dc
   for (ii=0;ii<nred;ii++){
-    ath = fthresh*wrms[ii] + wmean[ii];
+    ath = fthresh*wrms[thread_num][ii] + wmean[thread_num][ii];
     bth = ath;
     i2 = i1 + redplan[ii];
     for (i=i1;i<i2;i++) {
       if( (fabs(out[i][0])>ath || fabs(out[i][1])>bth) && psrifs[i]>0 ){
-        fftstat[ioff+i] = fftstat[ioff+i] + 1.0;
+        fftstat[ioff+i] += 1.0;
         for (j=i,ih=1; ih<=nharm && j<nfft2; ih++,j=i*ih){
-          in[j][0] = wmean[ii];
-          in[j][1] = wmean[ii];
-          in[nfft-j][0] = wmean[ii];
-          in[nfft-j][1] = wmean[ii];
+          in[j][0] = wmean[thread_num][ii];
+          in[j][1] = wmean[thread_num][ii];
+          in[nfft-j][0] = wmean[thread_num][ii];
+          in[nfft-j][1] = wmean[thread_num][ii];
         }
      }
     }
@@ -197,13 +208,13 @@ void fftclean(fftw_complex *in, fftw_complex *out, long int npts, int ioff)
       in[nfft-j-1][0] = out[nfft-j-1][0];
       in[nfft-j-1][1] = out[nfft-j-1][1];
       in[j-1][0] = out[j-1][0];
-      in[j-1][1] = out[j-1][1]; 
+      in[j-1][1] = out[j-1][1];
       in[nfft-j+1][0] = out[nfft-j+1][0];
-      in[nfft-j+1][1] = out[nfft-j+1][1]; 
+      in[nfft-j+1][1] = out[nfft-j+1][1];
     }
   }  */
 
-  fftw_execute ( bplan );
+  fftw_execute ( bplan[thread_num] );
   for (i=0;i<nfft;i++) {
     in[i][0] = out[i][0]/anfft;
   }
@@ -219,19 +230,25 @@ void tsclip(double *tdata, long int npts, float thresh)
   double anpt,ath;
   double m1,r1;
 
-  for (i=0;i<npts;i++) ai[i]=tdata[i];
-  robust_meanrms(ai,npts);
-  m1 = ai[npts];
-  r1 = ai[npts+1];
+  #ifdef _OPENMP
+  int thread_num = omp_get_thread_num();
+  #else
+  int thread_num = 0;
+  #endif
+
+  for (i=0;i<npts;i++) ai[thread_num][i]=tdata[i];
+  robust_meanrms(ai[thread_num],npts);
+  m1 = ai[thread_num][npts];
+  r1 = ai[thread_num][npts+1];
   if(r1<=0.0){
     r1 = 0.0;
     m1 = 0.0;
   }
   ath = m1+thresh*r1;
   for (i=0;i<npts;i++) {
-    if( fabs(ai[i])>ath) ai[i] = (ai[i]/fabs(ai[i]))*ath;
+    if( fabs(ai[thread_num][i])>ath) ai[thread_num][i] = (ai[thread_num][i]/fabs(ai[thread_num][i]))*ath;
   }
-  for (i=0;i<npts;i++) tdata[i]=ai[i];
+  for (i=0;i<npts;i++) tdata[i]=ai[thread_num][i];
   tdata[npts] = m1;
   tdata[npts+1] = r1;
 }
@@ -245,19 +262,25 @@ void tsclean(double *tdata, long int npts, float thresh)
   double anpt,ath;
   double m1,r1;
 
-  for (i=0;i<npts;i++) ai[i]=tdata[i];
-  robust_meanrms(ai,npts);
-  m1 = ai[npts];
-  r1 = ai[npts+1];
+  #ifdef _OPENMP
+  int thread_num = omp_get_thread_num();
+  #else
+  int thread_num=0;
+  #endif
+
+  for (i=0;i<npts;i++) ai[thread_num][i]=tdata[i];
+  robust_meanrms(ai[thread_num],npts);
+  m1 = ai[thread_num][npts];
+  r1 = ai[thread_num][npts+1];
   if(r1<=0.0){
     r1 = 0.0;
     m1 = 0.0;
   }
   ath = thresh*r1;
   for (i=0;i<npts;i++) {
-    if( fabs((ai[i]-m1))>ath) ai[i] = m1;
+    if( fabs((ai[thread_num][i]-m1))>ath) ai[thread_num][i] = m1;
   }
-  for (i=0;i<npts;i++) tdata[i]=ai[i];
+  for (i=0;i<npts;i++) tdata[i]=ai[thread_num][i];
   tdata[npts] = m1;
   tdata[npts+1] = r1;
 }
@@ -270,18 +293,24 @@ void spfind(double *cdata, long int npts, float thresh, double *wt)
   double anpt,ath;
   double m1,r1,m2;
 
+  #ifdef _OPENMP
+  int thread_num = omp_get_thread_num();
+  #else
+  int thread_num=0;
+  #endif
+
   n = npts-1;
-  for (i=0;i<n;i++) ai[i]=fabs(cdata[i+1]-cdata[i]) ;
-  ai[n] = 0.0;
-  ai[n+1] = 0.0;
-  robust_meanrms(ai,n);
-  m1 = ai[n];
-  r1 = ai[n+1];
+  for (i=0;i<n;i++) ai[thread_num][i]=fabs(cdata[i+1]-cdata[i]) ;
+  ai[thread_num][n] = 0.0;
+  ai[thread_num][n+1] = 0.0;
+  robust_meanrms(ai[thread_num],n);
+  m1 = ai[thread_num][n];
+  r1 = ai[thread_num][n+1];
   if(r1<=0.0) r1 = 10000.0;
 
   ath = thresh*r1;
   for (i=0;i<n;i++) {
-    if( fabs(ai[i]-m1)>ath){
+    if( fabs(ai[thread_num][i]-m1)>ath){
       wt[i] = -1.0;
       wt[i+1] = -1.0;
     }
@@ -297,18 +326,23 @@ void tsfind(double *ttdata, long int npts, float thresh, double *wt)
   double anpt,ath;
   double m1,r1,m2;
 
+  #ifdef _OPENMP
+  int thread_num = omp_get_thread_num();
+  #else
+  int thread_num=0;
+  #endif
 
-  for (i=0;i<npts;i++) ai[i]=ttdata[i] ;
-  ai[npts] = 0.0;
-  ai[npts+1] = 0.0;
-  robust_meanrms(ai,npts);
-  m1 = ai[npts];
-  r1 = ai[npts+1];
+  for (i=0;i<npts;i++) ai[thread_num][i]=ttdata[i] ;
+  ai[thread_num][npts] = 0.0;
+  ai[thread_num][npts+1] = 0.0;
+  robust_meanrms(ai[thread_num],npts);
+  m1 = ai[thread_num][npts];
+  r1 = ai[thread_num][npts+1];
   if(r1<=0.0) r1 = 10000.0;
 
   ath = thresh*r1;
   for (i=0;i<npts;i++) {
-    if( fabs((ai[i]-m1))>ath){
+    if( fabs((ai[thread_num][i]-m1))>ath){
       wt[i] = -1.0;
     }
   }
@@ -354,35 +388,43 @@ void cleanit(float *data, int nchans, long int nadd)
   float thresh;
   double lg,lgr, an, atemp;
 
+  int thread_num=0;
 
 // get some pre-cleaning statistics
 
   for (channum=0; channum<nchans; channum++) coff[channum]=nadd*channum ;
+
+  #pragma omp parallel for private(channum,inc,isame,ii,jj) schedule(dynamic)
   for (channum=0; channum<nchans; channum++) {
+    #ifdef _OPENMP
+    thread_num = omp_get_thread_num();
+    #endif
     inc = coff[channum];
   /* Select the correct channel */
-    for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) chandata[ii] = (double) data[jj];
-    for (ii = 0; ii<nadd; ii++)
-    { in[ii][0] = chandata[ii];
-      in[ii][1] = 0.0; }
-    if( pcl == 0 ){
+    for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) chandata[thread_num][ii] = (double) data[jj];
+    for (ii = 0; ii<nadd; ii++) {
+      in[thread_num][ii][0] = chandata[thread_num][ii];
+      in[thread_num][ii][1] = 0.0;
+    }
+    if( pcl == 0 ) {
       isame = 0;
     } else {
-      isame = all_samef(chandata,nadd);
+      isame = all_samef(chandata[thread_num],nadd);
     }
-    if( isame == 0){
-      fftclean(in,out,nadd,inc); // clean some periodic RFIs
-      for (ii = 0; ii<nadd; ii++) chandata[ii] = in[ii][0];
-      tsclip(chandata,nadd,sthresh); // clean some spiky RFIs
-      mspec[channum]=chandata[nadd];
-      rspec[channum]=chandata[nadd+1];
+    if( isame == 0) {
+      fftclean(in[thread_num],out[thread_num],nadd,inc); // clean some periodic RFIs
+      for (ii = 0; ii<nadd; ii++) chandata[thread_num][ii] = in[thread_num][ii][0];
+      tsclip(chandata[thread_num],nadd,sthresh); // clean some spiky RFIs
+      mspec[channum]=chandata[thread_num][nadd];
+      rspec[channum]=chandata[thread_num][nadd+1];
     }
     else {
-      mspec[channum]=chandata[0];
+      mspec[channum]=chandata[thread_num][0];
       rspec[channum]=0.0;
     }
     vspec[channum] = rspec[channum]*rspec[channum];
-    for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) data[jj]= (float) chandata[ii];
+    for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans)
+      data[jj] = (float) chandata[thread_num][ii];
   }
 // get some post- fft and timeseries cleaning statistics
 
@@ -392,19 +434,19 @@ void cleanit(float *data, int nchans, long int nadd)
   spfind(vspec,nchans,rthresh,wspec);
   tsfind(mspec,nchans,rthresh,wspec);
   tsfind(vspec,nchans,rthresh,wspec);
-  if(pcl>0){
+  if(pcl>0) {
      kk = (int)(0.9*nchans);
      for (i=kk;i<nchans;i++) wspec[i]=0.0;
      for (i=0;i<kk;i++) wspec[i]=0.0;
   }
-  for (i=0;i<nchans; i++){
+  for (i=0;i<nchans; i++) {
     if(wspec[i] > 0.0) {
       lg = mspec[i];
       lgr = rspec[i];
       break;
     }
   }
-  for (i=0;i<nchans;i++){
+  for (i=0;i<nchans;i++) {
     if(wspec[i]<0.0) {
       mspec[i] = lg;
       rspec[i] = lgr;
@@ -417,8 +459,8 @@ void cleanit(float *data, int nchans, long int nadd)
 
   // log the information which channels got rejected
   for (i=0;i<nchans;i++) if(wspec[i]<0.0) chanstat[i]=chanstat[i]+1.0;
-  
 
+  #pragma omp parallel for private(channum,jj,ii)
   for (channum=0; channum<nchans; channum++) {
     if(wspec[channum] < 0.0) {
        for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) data[jj] = mspec[channum];
@@ -426,34 +468,43 @@ void cleanit(float *data, int nchans, long int nadd)
   }
 // see if the whole block needs to be rejected
   an = 0.0;
-  for (ii=0; ii<nchans; ii++){ if(wspec[ii]<0.0) an=an+1.0; }
-  if((an/nchans)>chanfrac){
+  for (ii=0; ii<nchans; ii++) if(wspec[ii]<0.0) an=an+1.0;
+  if((an/nchans)>chanfrac) {
+    #pragma omp parallel for private(channum,ii,jj) collapse(2)
     for (channum=0; channum<nchans; channum++) {
-         for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) data[jj] = last_mspec[channum]; }
+      for (ii = 0; ii < nadd; ii++) {
+          jj = channum + (ii * nchans);
+          data[jj] = last_mspec[channum];
+      }
+    }
   } else {
-    for (ii=0; ii<nchans; ii++){ if(wspec[channum] > 0.0) last_mspec[ii] = mspec[ii];}
+    for (ii=0; ii<nchans; ii++) if(wspec[channum] > 0.0) last_mspec[ii] = mspec[ii];
   }
-  
+
 
 
 // Try clipping some channels in individual samples
+  #pragma omp parallel for private(t,c,nxc) schedule(dynamic)
   for (t=0; t<nadd; t++){
+      #ifdef _OPENMP
+      thread_num = omp_get_thread_num();
+      #endif
       nxc = t*nchans;
-      for (c=0; c<nchans; c++) chandata[c] = data[nxc+c];
-      spclip(chandata,nchans,clipthresh);
-      for (c=0; c<nchans; c++) data[nxc+c] = chandata[c];
+      for (c=0; c<nchans; c++) chandata[thread_num][c] = data[nxc+c];
+      spclip(chandata[thread_num],nchans,clipthresh);
+      for (c=0; c<nchans; c++) data[nxc+c] = chandata[thread_num][c];
   }
 // Now some timeseries cleaning
   an = (double)nadd;
   for (t=0; t<nadd; t++){
       nxc = t*nchans;
-      chandata[t]=0.0;
-      for (c=0; c<nchans; c++) chandata[t] = chandata[t]+data[nxc+c];
-      chandata[t]=chandata[t]/an;
+      chandata[thread_num][t]=0.0;
+      for (c=0; c<nchans; c++) chandata[thread_num][t] = chandata[thread_num][t]+data[nxc+c];
+      chandata[thread_num][t]=chandata[thread_num][t]/an;
   }
   for (i=0; i<nadd; i++) wt[i]=+1.0;
-  tsfind(chandata,nadd,sthresh,wt);
-  spfind(chandata,nadd,sthresh,wt);
+  tsfind(chandata[thread_num],nadd,sthresh,wt);
+  spfind(chandata[thread_num],nadd,sthresh,wt);
   for (t=0; t<nadd; t++){
       nxc = t*nchans;
       if(wt[t] < 0.0){
@@ -470,8 +521,8 @@ void cleanit(float *data, int nchans, long int nadd)
       isame = 0;
       for(jj=0; jj<nvar; jj++){
         ii = nxc + jj*kk;
-        for (c=0; c<kk; c++) chandata[c] = data[ii+c];
-        if(all_samef(chandata,kk)>0) isame = isame + 1;
+        for (c=0; c<kk; c++) chandata[thread_num][c] = data[ii+c];
+        if(all_samef(chandata[thread_num],kk)>0) isame = isame + 1;
       }
       if(isame >= (int)(0.8*nvar)){
         for (c=0; c<nchans; c++) data[c+nxc] = 0.0;
@@ -489,10 +540,10 @@ void cleanit(float *data, int nchans, long int nadd)
            rspec[t] = 0.0;
           }
           else{
-           for (c=0; c<nchans; c++) chandata[c] = data[nxc+c];
-           robust_meanrms(chandata,nchans);
-           //simple_meanrms(chandata,nchans);
-           rspec[t] = chandata[nchans+1]*chandata[nchans+1];
+           for (c=0; c<nchans; c++) chandata[thread_num][c] = data[nxc+c];
+           robust_meanrms(chandata[thread_num],nchans);
+           //simple_meanrms(chandata[thread_num],nchans);
+           rspec[t] = chandata[thread_num][nchans+1]*chandata[thread_num][nchans+1];
           }
       }
       t = nadd;
@@ -502,21 +553,21 @@ void cleanit(float *data, int nchans, long int nadd)
     }
     nvar = nadd/nsect;
     for (jj=0; jj<nsect; jj++){
-      for (c=0; c<nchans; c++) chandata[c] = 0.0;
+      for (c=0; c<nchans; c++) chandata[thread_num][c] = 0.0;
       for (t=0; t<nvar; t++){
         nxc = (jj*nvar+t)*nchans;
-        for (c=0; c<nchans; c++) chandata[c] = chandata[c]+data[nxc+c];
+        for (c=0; c<nchans; c++) chandata[thread_num][c] = chandata[thread_num][c]+data[nxc+c];
       }
-      for (c=0; c<nchans; c++) chandata[c] = chandata[c]/nvar;
-      //robust_meanrms(chandata,nchans);
-      simple_meanrms(chandata,nchans);
-      an = chandata[nchans+1]*chandata[nchans+1];
+      for (c=0; c<nchans; c++) chandata[thread_num][c] = chandata[thread_num][c]/nvar;
+      //robust_meanrms(chandata[thread_num],nchans);
+      simple_meanrms(chandata[thread_num],nchans);
+      an = chandata[thread_num][nchans+1]*chandata[thread_num][nchans+1];
       if(an<=0.0) an=10000000.0;
       for (t=0; t<nvar; t++){
         nxc = (jj*nvar+t)*nchans;
         for (c=0; c<nchans; c++) data[nxc+c] = data[nxc+c]*last_tvar/an;
       }
-    } 
+    }
   }
 
   // Try weighting channels by variance
@@ -532,7 +583,7 @@ void cleanit(float *data, int nchans, long int nadd)
       else {
          for (ii = 0, jj = channum; ii < nadd; ii++, jj += nchans) data[jj] = 0.0;
       }
-    }   
+    }
   }
 
 

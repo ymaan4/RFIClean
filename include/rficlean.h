@@ -12,12 +12,12 @@ double tempra,tempdec, psrf, psrfdf, *last_mspec, *wrms, *wmean, *ai;
 float forcefthresh,fthresh,rthresh,sthresh,last_tvar,last_fvar,chanfrac,sampfrac,clipthresh;
 float *fftstat, *chanstat, *predist, *xpredist, *postdist, *xpostdist, *finaldist, *xfinaldist ;
 double *tfvar, *tfmean,meanvar,rmsvar ;
-double *chandata, *mspec, *rspec, *vspec, *wspec, *wt;
+double **chandata, *mspec, *rspec, *vspec, *wspec, *wt;
 long int *coff;
 
-fftw_complex *in;
-fftw_complex *out;
-fftw_plan fplan, bplan;
+fftw_complex **in;
+fftw_complex **out;
+fftw_plan *fplan, *bplan;
 
 
 int strings_equal (char *string1, char *string2);

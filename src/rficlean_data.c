@@ -1,8 +1,8 @@
 /*
- * 
- * rficlean_data --- handle reading/writing of data blocks, and 
+ *
+ * rficlean_data --- handle reading/writing of data blocks, and
  *                   intitialization etc.
- * 
+ *
  * Yogesh Maan <maan@astron.nl>   2018
  *
  */
@@ -12,9 +12,13 @@
 #include <math.h>
 #include "rficlean.h"
 #include <fftw3.h>
+#include <time.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
-void rficlean_data(FILE *input, FILE *output) 
-{ 
+void rficlean_data(FILE *input, FILE *output)
+{
   char string[80],plotdevice[100];
   float *fblock,min,max,hpower,realtime,fsaved[2], *ts0dm, atemp;
   unsigned short *sblock;
@@ -22,6 +26,13 @@ void rficlean_data(FILE *input, FILE *output)
   int nsaved=0,opened=0, wpout=10;
   long int ns,nsblk,nout,iter,i,j,k, jt1, jt2, iblock;
   long int itemp, isum, nsize, istart, ii, jj, kk, n0;
+  time_t s, start, cpu_time;
+  clock_t t_global, t_function, t_function_sum;
+  int i_function;
+  i_function = 0;
+
+  s = time(NULL);
+  t_global = clock();
 
   last_tvar = -1.0;
   last_fvar = -1.0;
@@ -41,7 +52,7 @@ void rficlean_data(FILE *input, FILE *output)
 
   printf ("\n Preparing all buffers...\n");
 /***/
-    chandata = (double *) malloc(nsize*sizeof(double));
+    // chandata = (double *) malloc(nsize*sizeof(double));
     vspec = (double *) malloc(nsize*sizeof(double));
     rspec = (double *) malloc(nsize*sizeof(double));
   coff = (long int *) malloc((nchans)*sizeof(long int));
@@ -50,17 +61,37 @@ void rficlean_data(FILE *input, FILE *output)
   wspec = (double *) malloc(nsize*sizeof(double));
 /***/
 
-  in = fftw_malloc (sizeof(fftw_complex)*(naddt+5));
-  out = fftw_malloc (sizeof(fftw_complex)*(naddt+5));
-  fplan = fftw_plan_dft_1d( naddt, in, out,FFTW_FORWARD, FFTW_ESTIMATE );
-  bplan = fftw_plan_dft_1d( naddt, in, out,FFTW_BACKWARD, FFTW_ESTIMATE );
-  ai = (double *) malloc(sizeof(double)*(nsize));
+  // in = fftw_malloc (sizeof(fftw_complex)*(naddt+5));
+  // out = fftw_malloc (sizeof(fftw_complex)*(naddt+5));
+  // fplan = fftw_plan_dft_1d( naddt, in, out, FFTW_FORWARD, FFTW_ESTIMATE );
+  // bplan = fftw_plan_dft_1d( naddt, in, out, FFTW_BACKWARD, FFTW_ESTIMATE );
+  // ai = (double *) malloc(sizeof(double)*(nsize));
   psrifs = (long int *) malloc(sizeof(long int)*(naddt));
 
+  #ifdef _OPENMP
+  int max_threads = omp_get_max_threads();
+  if (fftw_init_threads()) fftw_plan_with_nthreads(omp_get_max_threads());
+  #else
+  int max_threads = 1;
+  #endif
 
+  chandata = (double **) malloc(max_threads * sizeof(double *));
+  in = (fftw_complex**) malloc (max_threads * sizeof(fftw_complex*));
+  out = (fftw_complex**) malloc (max_threads * sizeof(fftw_complex*));
+  fplan = (fftw_plan*) malloc (max_threads * sizeof(fftw_plan));
+  bplan = (fftw_plan*) malloc (max_threads * sizeof(fftw_plan));
+  ai = (double **) malloc(max_threads * sizeof(double *));
+  for (i=0; i<max_threads; i++) {
+    chandata[i] = (double *) malloc(nsize * sizeof(double));
+    ai[i] = (double *) malloc(nsize * sizeof(double));
+    in[i] = fftw_malloc ((naddt+5) * sizeof(fftw_complex));
+    out[i] = fftw_malloc ((naddt+5) * sizeof(fftw_complex));
+    fplan[i] = fftw_plan_dft_1d(naddt, in[i], out[i], FFTW_FORWARD, FFTW_ESTIMATE);
+    bplan[i] = fftw_plan_dft_1d(naddt, in[i], out[i], FFTW_BACKWARD, FFTW_ESTIMATE);
+  }
 
   printf (" Preparing the median-filtering plan ... ");
-  // plan the median-filter window sizes for spectral whitening 
+  // plan the median-filter window sizes for spectral whitening
   //itemp = 16; // starting length of median-filter
   itemp = 8; // starting length of median-filter
   iter = 0;
@@ -76,8 +107,14 @@ void rficlean_data(FILE *input, FILE *output)
   iter++;
   redplan[iter] = naddt/2-isum-1;
   nred = iter+1;
-  wmean = (double *) malloc((nred)*sizeof(double));
-  wrms = (double *) malloc((nred)*sizeof(double));
+  // wmean = (double *) malloc((nred)*sizeof(double));
+  // wrms = (double *) malloc((nred)*sizeof(double));
+  wmean = (double **) malloc(max_threads * sizeof(double *));
+  wrms = (double **) malloc(max_threads * sizeof(double *));
+  for (i=0; i<max_threads; i++) {
+    wmean[i] = (double *) malloc(nred * sizeof(double));
+    wrms[i] = (double *) malloc(nred * sizeof(double));
+  }
   printf (" Done! \n");
 
   // identify the fft-bin corresponding to pulsar's fundamental to be protected
@@ -163,7 +200,12 @@ void rficlean_data(FILE *input, FILE *output)
       jj = naddt*nchans;
       for (j=ns;j<jj;j++) fblock[j] = 0.0;
     }
+
+    if (i_function == 0) t_function_sum = t_function = clock();
+    else t_function = clock();
     cleanit(fblock,nchans,naddt);
+    t_function_sum += ((double) clock() - t_function);
+    i_function += 1;
     //-------------------------------------------------
     // compute post-cleaning 0-DM tseries
     for (j=0;j<n0;j++) {
@@ -188,7 +230,7 @@ void rficlean_data(FILE *input, FILE *output)
     //-------------------------------------------------
 
     istart = istart+n0;
-    
+
 
     if (!opened) {
       opened=1;
@@ -255,13 +297,13 @@ void rficlean_data(FILE *input, FILE *output)
   fclose(input);
   fclose(output);
 
-  fftw_destroy_plan ( fplan );
-  fftw_destroy_plan ( bplan );
-  fftw_free ( in );
-  fftw_free ( out );
-  free (ai);
-  free (wmean);
-  free (wrms);
+  // fftw_destroy_plan ( fplan );
+  // fftw_destroy_plan ( bplan );
+  // fftw_free ( in );
+  // fftw_free ( out );
+  // free (ai);
+  // free (wmean);
+  // free (wrms);
   free (tfvar);
   free (tfmean);
   free (fblock);
@@ -284,7 +326,38 @@ void rficlean_data(FILE *input, FILE *output)
   free(wspec);
   free(wt);
   free(coff);
-  free(chandata);
+
+  for (i=0; i<max_threads; i++) {
+    fftw_free (in[i]);
+    fftw_free (out[i]);
+    fftw_destroy_plan ( fplan[i] );
+    fftw_destroy_plan ( bplan[i] );
+    free (ai[i]);
+    free (wmean[i]);
+    free (wrms[i]);
+    free(chandata[i]);
+  }
+  free (fplan);
+  free (bplan);
+  free (in);
+  free (out);
+  free (ai);
+  free (wmean);
+  free (wrms);
+  free (chandata);
+
+  FILE *file_timing = fopen("timing.csv", "a+");
+  fprintf(file_timing, "%s,%d,%d,%d,%.3f,%.3f\n",
+    inpfile,
+    naddt,
+    max_threads,
+    time(NULL) - s,
+    ((double) clock() - t_global) / (CLOCKS_PER_SEC) / (double) max_threads,
+    ((double) t_function_sum / (i_function * CLOCKS_PER_SEC)) / (double) max_threads
+  );
+  // fprintf(file_timing, "%s,%d,%d\n", time_section, -1, time(NULL) - s);
+  fclose(file_timing);
 
   printf (" Freed the buffers. All done!\n\n ");
+  printf ("%d seconds\n\n", time(NULL) - s);
 }
