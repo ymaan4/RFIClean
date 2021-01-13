@@ -63,9 +63,7 @@ void rficlean_help()
   puts("-ps    <filename>   - File-name of the output diagnostic plot (def=rficlean_output.ps)");
   puts("-o     <filename>   - specify output filename (def=stdout)");
   puts("-psrf  <F0>         - fundamental freq. (Hz) of pulsar to be protected (def=none)");
-  puts("-psrfdf <dF>        - Delta-frequency (on either side) of the fundamental & harmonic");
-  puts("-psrfbins <Nb>      - *Nbins (on either side) of the fundamental & harmonic");
-  puts("                      (*specify either psrfbins or psrfdf!)");
+  puts("-psrfbins <Nb>      - Nbins (on either side) of the fundamental & harmonic");
   puts("                      frequencies to be protected (def=2)");
   puts("-headerless         - do not broadcast resulting header (def=broadcast)");
   puts("-bst   <bstart>     - Starting block number to be processed (def=1, i.e. start of file)");
@@ -127,8 +125,7 @@ void main (int argc, char *argv[])
   zerodm = 0;
   iwhite = 0;
   psrf = 1000000.0;
-  psrfbins = -1;
-  psrfdf = -1.0;
+  psrfbins = 2;
   bl_start = 1;
   nblocks  = 9999999;
   byte_offset = 0;
@@ -199,9 +196,6 @@ void main (int argc, char *argv[])
       } else if (strings_equal(argv[i],"-psrfbins")) {
 	i++;
 	psrfbins=atoi(argv[i]);
-      } else if (strings_equal(argv[i],"-psrfdf")) {
-        i++;
-        psrfdf=atof(argv[i]);
       } else if (strings_equal(argv[i],"-psrf")) {
 	i++;
 	psrf=atof(argv[i]);
@@ -241,16 +235,6 @@ void main (int argc, char *argv[])
 
   // some sanity checks
   if (psrf<1000000.0 && fthresh<4.0 && forcefthresh>0) fthresh=4.0;
-  if (psrfdf>0.0 && psrfbins > 0){
-    printf ("Both psrfdf and psrfbins are specified!!");
-    printf ("Using the delta-F information from psrfdf.");
-    psrfbins = -1;
-  }
-  if (psrfdf<0.0 && psrfbins<0){
-    printf ("Nether psrfdf nor psrfbins is specified!!");
-    printf ("Using psrfbins=8");
-    psrfbins = 8;
-  }
 
   /* read in the header to establish what the input data are... */
   if (nifs>1){

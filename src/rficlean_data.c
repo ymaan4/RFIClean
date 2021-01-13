@@ -120,11 +120,6 @@ void rficlean_data(FILE *input, FILE *output)
   // identify the fft-bin corresponding to pulsar's fundamental to be protected
   printf (" Planning which fundamental and harmonics to be safeguarded ... ");
   atemp = 1.0/(tsamp*(float)naddt);  // delta-f
-  if(psrfdf>0.0){
-     psrfbins = (int)(psrfdf/atemp) + 1;
-     if(psrfbins<8) psrfbins=8;
-     printf ("Delta-f and max(deduced_psrfbins,8): %lf,  %ld",atemp,psrfbins);
-  }
   psrif = floor((psrf+atemp*0.5)/atemp) ; // index in the fft-array
   if(psrif<(psrfbins+2)) {
      psrif=-100;
