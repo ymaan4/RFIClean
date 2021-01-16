@@ -15,10 +15,11 @@ filterbank format I/O, RFIClean uses several modules from Duncan Lorimer's SIGPR
 (https://sourceforge.net/p/sigproc/wiki/Home/; thank you Dunc) which are included
 here in the src/ext/ folder (some of these codes are also modified suitably).
 
-### Dependencies:
-FFTW3
-PGPLOT
-
+### Installation:
+* For compiling RFIClean, a `Makefile` is included in the package.
+* If you want to install the executable at a location other than `RFIClean/bin/`, then change `MYBIN` in the `Makefile` accordingly.
+* RFIClean has the following dependencies: `FFTW3` and `PGPLOT`. If these are not included in the regular library path then amend `LIBS` in the `Makefile` accordingly.
+* To compile, run `make`. For installing the executable in your favourite location, run `make install`.
 * Once installed, use `rficlean -h` or `rficlean --help` to see the usage information.
 
 
