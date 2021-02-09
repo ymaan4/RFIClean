@@ -1,6 +1,6 @@
 #!/bin/bash
 #=======================================================================
-#  Crude parallelization of rfiClean for processing filterbank files.
+#  Crude parallelization of RFIClean for processing filterbank files.
 #
 #           Yogesh Maan, Dec. 2019
 #=======================================================================
@@ -39,13 +39,13 @@ Nb=`echo "scale=0; $nsamples/($Np*$block) + 1" | bc`
 
 
 
-echo "Starting parallel-rfiClean processing at: "
+echo "Starting parallel-RFIClean processing at: "
 date
 echo ""
 
 ##-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # prepare and execute the commands for all parts
-mkdir -p rfiClean_ps
+mkdir -p RFIClean_ps
 combine_cmd="cat "
 remove_cmd="rm  "
 count=0
@@ -57,15 +57,15 @@ for (( c=1; c<=$Np; c++ )); do
   psfile=${rtag}_part${count}.ps
   #-------------------------------------
   if [ $count -eq 1 ]; then
-    cmd="rficlean -t $block $flag -o  $outfile -ps rfiClean_ps/$psfile  $infile -bst $bst -nbl $Nb &"
+    cmd="rficlean -t $block $flag -o  $outfile -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb &"
   elif [ $count -eq $Np ]; then
     combine_cmd="${combine_cmd} ${tempout}"
     remove_cmd="${remove_cmd} ${tempout}"
-    cmd="rficlean -t $block $flag -o  $tempout -ps rfiClean_ps/$psfile  $infile -bst $bst -headerless &"
+    cmd="rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -headerless &"
   else
     combine_cmd="${combine_cmd} ${tempout}"
     remove_cmd="${remove_cmd} ${tempout}"
-    cmd="rficlean -t $block $flag -o  $tempout -ps rfiClean_ps/$psfile  $infile -bst $bst -nbl $Nb -headerless &"
+    cmd="rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb -headerless &"
   fi
   echo $cmd
   eval $cmd
@@ -83,7 +83,7 @@ echo $cmd
 eval $cmd
 
 
-echo "Finished parallel-rfiClean processing at: "
+echo "Finished parallel-RFIClean processing at: "
 date
 echo ""
 
