@@ -411,12 +411,20 @@ void cleanit(float *data, int nchans, long int nadd)
     } else {
       isame = all_samef(chandata[thread_num],nadd);
     }
-    if( isame == 0) {
-      fftclean(in[thread_num],out[thread_num],nadd,inc); // clean some periodic RFIs
+    if( isame == 0){
+      if(rfiFDx){
+        fftclean(in[thread_num],out[thread_num],nadd,inc); // clean some periodic RFIs
+      }
       for (ii = 0; ii<nadd; ii++) chandata[thread_num][ii] = in[thread_num][ii][0];
-      tsclip(chandata[thread_num],nadd,sthresh); // clean some spiky RFIs
-      mspec[channum]=chandata[thread_num][nadd];
-      rspec[channum]=chandata[thread_num][nadd+1];
+      if(rfiTx){
+        tsclip(chandata[thread_num],nadd,sthresh); // clean some spiky RFIs
+        mspec[channum]=chandata[thread_num][nadd];
+        rspec[channum]=chandata[thread_num][nadd+1];
+      } else {
+        robust_meanrms(chandata[thread_num],nadd);
+        mspec[channum]=chandata[thread_num][nadd];
+        rspec[channum]=chandata[thread_num][nadd+1];
+      }
     }
     else {
       mspec[channum]=chandata[thread_num][0];
@@ -430,11 +438,15 @@ void cleanit(float *data, int nchans, long int nadd)
 
 
   for (i=0; i<nchans; i++) wspec[i]=+1.0;
-  spfind(mspec,nchans,rthresh,wspec);
-  spfind(vspec,nchans,rthresh,wspec);
-  tsfind(mspec,nchans,rthresh,wspec);
-  tsfind(vspec,nchans,rthresh,wspec);
-  if(pcl>0) {
+  if(rfiMSx){
+    spfind(mspec,nchans,rthresh,wspec);
+    tsfind(mspec,nchans,rthresh,wspec);
+  }
+  if(rfiVSx){
+    spfind(vspec,nchans,rthresh,wspec);
+    tsfind(vspec,nchans,rthresh,wspec);
+  }
+  if(pcl>0){
      kk = (int)(0.9*nchans);
      for (i=kk;i<nchans;i++) wspec[i]=0.0;
      for (i=0;i<kk;i++) wspec[i]=0.0;
@@ -484,32 +496,35 @@ void cleanit(float *data, int nchans, long int nadd)
 
 
 // Try clipping some channels in individual samples
-  #pragma omp parallel for private(t,c,nxc) schedule(dynamic)
-  for (t=0; t<nadd; t++){
-      #ifdef _OPENMP
-      thread_num = omp_get_thread_num();
-      #endif
-      nxc = t*nchans;
-      for (c=0; c<nchans; c++) chandata[thread_num][c] = data[nxc+c];
-      spclip(chandata[thread_num],nchans,clipthresh);
-      for (c=0; c<nchans; c++) data[nxc+c] = chandata[thread_num][c];
+  if(rfiSclip){
+    #pragma omp parallel for private(t,c,nxc) schedule(dynamic)
+    for (t=0; t<nadd; t++){
+        #ifdef _OPENMP
+        thread_num = omp_get_thread_num();
+        #endif
+        nxc = t*nchans;
+        for (c=0; c<nchans; c++) chandata[thread_num][c] = data[nxc+c];
+        spclip(chandata[thread_num],nchans,clipthresh);
+        for (c=0; c<nchans; c++) data[nxc+c] = chandata[thread_num][c];
+    }
   }
 // Now some timeseries cleaning
-  an = (double)nadd;
-  for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      chandata[thread_num][t]=0.0;
-      for (c=0; c<nchans; c++) chandata[thread_num][t] = chandata[thread_num][t]+data[nxc+c];
-      chandata[thread_num][t]=chandata[thread_num][t]/an;
-  }
-  for (i=0; i<nadd; i++) wt[i]=+1.0;
-  tsfind(chandata[thread_num],nadd,sthresh,wt);
-  spfind(chandata[thread_num],nadd,sthresh,wt);
-  for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      if(wt[t] < 0.0){
-        for (c=0; c<nchans; c++) data[nxc+c] = mspec[c];
-      }
+  if(rfiTx){
+    an = (double)nadd;
+    for (t=0; t<nadd; t++){
+        nxc = t*nchans;
+        chandata[thread_num][t]=0.0;
+        for (c=0; c<nchans; c++) chandata[thread_num][t] = chandata[thread_num][t]+data[nxc+c];
+        chandata[thread_num][t]=chandata[thread_num][t]/an;
+    }
+    for (i=0; i<nadd; i++) wt[i]=+1.0;
+    tsfind(chandata[thread_num],nadd,sthresh,wt);
+    spfind(chandata[thread_num],nadd,sthresh,wt);
+    for (t=0; t<nadd; t++){
+        nxc = t*nchans;
+        if(wt[t] < 0.0){
+          for (c=0; c<nchans; c++) data[nxc+c] = mspec[c];
+        }
   }
 
  // sometimes gpt results might need additional checks
@@ -587,14 +602,15 @@ void cleanit(float *data, int nchans, long int nadd)
   }
 
 
-
-  if(iflip==1){  // flip the band
-    for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      for (c=0; c<nchans; c++) mspec[c] = data[nxc+c];
-      for (c=0; c<nchans; c++) data[nxc+c] = mspec[nchans-c-1];
-    }
-  }
+  /* ***Now the following part is in rficlean_data.c ***
+//  if(iflip==1){  // flip the band
+//    for (t=0; t<nadd; t++){
+//      nxc = t*nchans;
+//      for (c=0; c<nchans; c++) mspec[c] = data[nxc+c];
+//      for (c=0; c<nchans; c++) data[nxc+c] = mspec[nchans-c-1];
+//    }
+//  }
+  ***/
 
 }
 //============================================================================

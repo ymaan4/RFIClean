@@ -51,8 +51,8 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-bin/rficlean.flags
-bin/crp_rficlean_gm.sh
+##bin/rficlean.flags  # include this in the package as an example
+#bin/crp_rficlean_gm.sh
 bin/rficlean
 bin/read_n_make_plot
 src/read_n_make_plot.c

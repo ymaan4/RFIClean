@@ -12,7 +12,6 @@
 #include <math.h>
 #include "rficlean.h"
 #include <fftw3.h>
-#include <time.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -26,13 +25,6 @@ void rficlean_data(FILE *input, FILE *output)
   int nsaved=0,opened=0, wpout=10;
   long int ns,nsblk,nout,iter,i,j,k, jt1, jt2, iblock;
   long int itemp, isum, nsize, istart, ii, jj, kk, n0;
-  time_t s, start, cpu_time;
-  clock_t t_global, t_function, t_function_sum;
-  int i_function;
-  i_function = 0;
-
-  s = time(NULL);
-  t_global = clock();
 
   last_tvar = -1.0;
   last_fvar = -1.0;
@@ -189,7 +181,7 @@ void rficlean_data(FILE *input, FILE *output)
   printf (" All buffers prepared! \n\n");
 
   /* main loop */
-  printf (" Now rfiClean-ing (and 0-DM cleaning & downsampling, if asked for), and writing out the data...\n \n");
+  printf (" Now RFIClean-ing (and 0-DM cleaning & downsampling, if asked for), and writing out the data...\n \n");
   istart = 0;
   iblock = 0;
   while ((ns=read_block(input,nbits,fblock,nsblk,byte_offset))>0 && iblock<nblocks) {
@@ -200,12 +192,18 @@ void rficlean_data(FILE *input, FILE *output)
       jj = naddt*nchans;
       for (j=ns;j<jj;j++) fblock[j] = 0.0;
     }
+    if(RFIx){
+      cleanit(fblock,nchans,naddt);
+    }
 
-    if (i_function == 0) t_function_sum = t_function = clock();
-    else t_function = clock();
-    cleanit(fblock,nchans,naddt);
-    t_function_sum += ((double) clock() - t_function);
-    i_function += 1;
+    // flip the band, if needed
+    if(iflip==1){
+      for (k=0; k<naddt; k++){
+        jj = k*nchans;
+        for (j=0; j<nchans; j++) mspec[j] = fblock[jj+j];
+        for (j=0; j<nchans; j++) fblock[jj+j] = mspec[nchans-j-1];
+      }
+    }
     //-------------------------------------------------
     // compute post-cleaning 0-DM tseries
     for (j=0;j<n0;j++) {
@@ -288,11 +286,16 @@ void rficlean_data(FILE *input, FILE *output)
     //sprintf(string,"time:%.1fs",realtime);
   }
 
-  printf (" Data rfiClean-ed and written out! \n\n");
-  printf (" Now making diagnostic plots ... ");
+  if(RFIx){
+    printf (" Data RFIClean-ed and written out! \n\n");
+    printf (" Now making diagnostic plots ... ");
 
-  plot_data(plotdevice,wpout);
-  printf (" Done! \n ");
+    plot_data(plotdevice,wpout);
+    printf (" Done! \n ");
+  } else {
+    printf (" Data not RFIClean-ed,\n");
+    printf (" other desired operation, if any, performed and data written out! \n\n");
+  }
 
   fclose(input);
   fclose(output);
@@ -345,18 +348,6 @@ void rficlean_data(FILE *input, FILE *output)
   free (wmean);
   free (wrms);
   free (chandata);
-
-  FILE *file_timing = fopen("timing.csv", "a+");
-  fprintf(file_timing, "%s,%d,%d,%d,%.3f,%.3f\n",
-    inpfile,
-    naddt,
-    max_threads,
-    time(NULL) - s,
-    ((double) clock() - t_global) / (CLOCKS_PER_SEC) / (double) max_threads,
-    ((double) t_function_sum / (i_function * CLOCKS_PER_SEC)) / (double) max_threads
-  );
-  // fprintf(file_timing, "%s,%d,%d\n", time_section, -1, time(NULL) - s);
-  fclose(file_timing);
 
   printf (" Freed the buffers. All done!\n\n ");
   printf ("%d seconds\n\n", time(NULL) - s);

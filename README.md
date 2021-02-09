@@ -15,15 +15,18 @@ filterbank format I/O, RFIClean uses several modules from Duncan Lorimer's SIGPR
 (https://sourceforge.net/p/sigproc/wiki/Home/; thank you Dunc) which are included
 here in the src/ext/ folder (some of these codes are also modified suitably).
 
-### Dependencies:
-FFTW3
-PGPLOT
-
-* Once installed, use `rficlean -h` or `rficlean --help` to see the usage information.
+### Installation:
+* For compiling RFIClean, a `Makefile` is included in the package.
+* If you want to install the executable at a location other than `RFIClean/bin/`, then change `MYBIN` in the `Makefile` accordingly.
+* RFIClean has the following dependencies: `FFTW3` and `PGPLOT`. If these are not included in the regular library paths then amend `LIBS` in the `Makefile` accordingly.
+* To compile, run `make`. For installing the executable in your favourite location, run `make install`.
+* Once installed, use `rficlean -h` or `rficlean --help` or just `rficlean` to see the usage information.
 
 
 ### Bash-script based parallel processing
-For faster processing, use the bash script in bin/ to use RFIClean on different parts of a single data file simultaneously and then combine the output products at the end --- parallel processing in a rather crude but very efficient way.
+For faster processing, use the bash script `crp_rficlean_fil.sh` in RFIClean/bin/ that uses RFIClean on different parts of a single data file simultaneously and then combines the output products at the end --- parallel processing in a rather crude but very efficient way. 
+
+To see the usage information, just execute the script without any command line arguments. The flags to be used with `rficlean` while using this script are picked up from a simple text file containing two rows: the first one indicating the block size and the second containing any other flags. For an example of this text file, see `RFIClean/bin/rficlean.flags`.
 
 ### Diagnostic plot
 RFIClean produces a diagnostic plot showing which Fourier frequencies are
