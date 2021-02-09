@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
 #include "header.h"
 #include <fftw3.h>
@@ -14,6 +15,7 @@ float *fftstat, *chanstat, *predist, *xpredist, *postdist, *xpostdist, *finaldis
 double *tfvar, *tfmean,meanvar,rmsvar ;
 double *chandata, *mspec, *rspec, *vspec, *wspec, *wt;
 long int *coff;
+bool RFIx,rfiFDx,rfiTx,rfiSx,rfiMSx,rfiVSx,rfiSclip;
 
 fftw_complex *in;
 fftw_complex *out;

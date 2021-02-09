@@ -371,11 +371,19 @@ void cleanit(float *data, int nchans, long int nadd)
       isame = all_samef(chandata,nadd);
     }
     if( isame == 0){
-      fftclean(in,out,nadd,inc); // clean some periodic RFIs
+      if(rfiFDx){
+        fftclean(in,out,nadd,inc); // clean some periodic RFIs
+      }
       for (ii = 0; ii<nadd; ii++) chandata[ii] = in[ii][0];
-      tsclip(chandata,nadd,sthresh); // clean some spiky RFIs
-      mspec[channum]=chandata[nadd];
-      rspec[channum]=chandata[nadd+1];
+      if(rfiTx){
+        tsclip(chandata,nadd,sthresh); // clean some spiky RFIs
+        mspec[channum]=chandata[nadd];
+        rspec[channum]=chandata[nadd+1];
+      } else {
+        robust_meanrms(chandata,nadd);
+        mspec[channum]=chandata[nadd];
+        rspec[channum]=chandata[nadd+1];
+      }
     }
     else {
       mspec[channum]=chandata[0];
@@ -388,10 +396,14 @@ void cleanit(float *data, int nchans, long int nadd)
 
 
   for (i=0; i<nchans; i++) wspec[i]=+1.0;
-  spfind(mspec,nchans,rthresh,wspec);
-  spfind(vspec,nchans,rthresh,wspec);
-  tsfind(mspec,nchans,rthresh,wspec);
-  tsfind(vspec,nchans,rthresh,wspec);
+  if(rfiMSx){
+    spfind(mspec,nchans,rthresh,wspec);
+    tsfind(mspec,nchans,rthresh,wspec);
+  }
+  if(rfiVSx){
+    spfind(vspec,nchans,rthresh,wspec);
+    tsfind(vspec,nchans,rthresh,wspec);
+  }
   if(pcl>0){
      kk = (int)(0.9*nchans);
      for (i=kk;i<nchans;i++) wspec[i]=0.0;
@@ -437,28 +449,32 @@ void cleanit(float *data, int nchans, long int nadd)
 
 
 // Try clipping some channels in individual samples
-  for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      for (c=0; c<nchans; c++) chandata[c] = data[nxc+c];
-      spclip(chandata,nchans,clipthresh);
-      for (c=0; c<nchans; c++) data[nxc+c] = chandata[c];
+  if(rfiSclip){
+    for (t=0; t<nadd; t++){
+        nxc = t*nchans;
+        for (c=0; c<nchans; c++) chandata[c] = data[nxc+c];
+        spclip(chandata,nchans,clipthresh);
+        for (c=0; c<nchans; c++) data[nxc+c] = chandata[c];
+    }
   }
 // Now some timeseries cleaning
-  an = (double)nadd;
-  for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      chandata[t]=0.0;
-      for (c=0; c<nchans; c++) chandata[t] = chandata[t]+data[nxc+c];
-      chandata[t]=chandata[t]/an;
-  }
-  for (i=0; i<nadd; i++) wt[i]=+1.0;
-  tsfind(chandata,nadd,sthresh,wt);
-  spfind(chandata,nadd,sthresh,wt);
-  for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      if(wt[t] < 0.0){
-        for (c=0; c<nchans; c++) data[nxc+c] = mspec[c];
-      }
+  if(rfiTx){
+    an = (double)nadd;
+    for (t=0; t<nadd; t++){
+        nxc = t*nchans;
+        chandata[t]=0.0;
+        for (c=0; c<nchans; c++) chandata[t] = chandata[t]+data[nxc+c];
+        chandata[t]=chandata[t]/an;
+    }
+    for (i=0; i<nadd; i++) wt[i]=+1.0;
+    tsfind(chandata,nadd,sthresh,wt);
+    spfind(chandata,nadd,sthresh,wt);
+    for (t=0; t<nadd; t++){
+        nxc = t*nchans;
+        if(wt[t] < 0.0){
+          for (c=0; c<nchans; c++) data[nxc+c] = mspec[c];
+        }
+    }
   }
 
  // sometimes gpt results might need additional checks
@@ -536,14 +552,15 @@ void cleanit(float *data, int nchans, long int nadd)
   }
 
 
-
-  if(iflip==1){  // flip the band
-    for (t=0; t<nadd; t++){
-      nxc = t*nchans;
-      for (c=0; c<nchans; c++) mspec[c] = data[nxc+c];
-      for (c=0; c<nchans; c++) data[nxc+c] = mspec[nchans-c-1];
-    }
-  }
+  /* ***Now the following part is in rficlean_data.c ***
+//  if(iflip==1){  // flip the band
+//    for (t=0; t<nadd; t++){
+//      nxc = t*nchans;
+//      for (c=0; c<nchans; c++) mspec[c] = data[nxc+c];
+//      for (c=0; c<nchans; c++) data[nxc+c] = mspec[nchans-c-1];
+//    }
+//  }
+  ***/
 
 }
 //============================================================================

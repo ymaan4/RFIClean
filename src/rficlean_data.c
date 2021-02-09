@@ -152,7 +152,7 @@ void rficlean_data(FILE *input, FILE *output)
   printf (" All buffers prepared! \n\n");
 
   /* main loop */
-  printf (" Now rfiClean-ing (and 0-DM cleaning & downsampling, if asked for), and writing out the data...\n \n");
+  printf (" Now RFIClean-ing (and 0-DM cleaning & downsampling, if asked for), and writing out the data...\n \n");
   istart = 0;
   iblock = 0;
   while ((ns=read_block(input,nbits,fblock,nsblk,byte_offset))>0 && iblock<nblocks) {
@@ -163,7 +163,18 @@ void rficlean_data(FILE *input, FILE *output)
       jj = naddt*nchans;
       for (j=ns;j<jj;j++) fblock[j] = 0.0;
     }
-    cleanit(fblock,nchans,naddt);
+    if(RFIx){
+      cleanit(fblock,nchans,naddt);
+    }
+
+    // flip the band, if needed
+    if(iflip==1){ 
+      for (k=0; k<naddt; k++){
+        jj = k*nchans;
+        for (j=0; j<nchans; j++) mspec[j] = fblock[jj+j];
+        for (j=0; j<nchans; j++) fblock[jj+j] = mspec[nchans-j-1];
+      }
+    }
     //-------------------------------------------------
     // compute post-cleaning 0-DM tseries
     for (j=0;j<n0;j++) {
@@ -246,11 +257,16 @@ void rficlean_data(FILE *input, FILE *output)
     //sprintf(string,"time:%.1fs",realtime);
   }
 
-  printf (" Data rfiClean-ed and written out! \n\n");
-  printf (" Now making diagnostic plots ... ");
+  if(RFIx){
+    printf (" Data RFIClean-ed and written out! \n\n");
+    printf (" Now making diagnostic plots ... ");
 
-  plot_data(plotdevice,wpout);
-  printf (" Done! \n ");
+    plot_data(plotdevice,wpout);
+    printf (" Done! \n ");
+  } else {
+    printf (" Data not RFIClean-ed,\n");
+    printf (" other desired operation, if any, performed and data written out! \n\n");
+  }
 
   fclose(input);
   fclose(output);

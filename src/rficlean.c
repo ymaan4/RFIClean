@@ -42,34 +42,52 @@ int help_required(char *string)
 void rficlean_help()
 {
   puts("");
-  puts("rficlean - clean some periodic and/or narrow-band RFIs in filterbank data\n");
+  puts("rficlean - clean some periodic and/or narrow-band and/or spiky/bursty RFI from filterbank data\n");
   puts("usage: rficlean -{options} {input-filename} \n");
-  puts("options:\n");
-  puts("       <filename>   - filterbank data file (def=stdin)");
-  puts("-t     <numsamps>   - number of time samples in a block (for periodicity search; def=4096)");
-  puts("-ft    <thres.>     - specify threshold for FT-cleaning (def=6.0)");
-  puts("-st    <thres.>     - specify threshold for timeseries-cleaning (def=10.0)");
-  puts("-rt    <thres.>     - specify threshold for chan-diff cleaning (def=4.0)");
-  puts("-n     <numbits>    - specify output number of bits (def=input)");
-  puts("-white              - whitten each spectrum before RFI excision");
-  puts("-zeordm             - remove 0-dm powers before writing out data");
-  puts("-pcl                - assume that input data may have some parts replaced");
-  puts("                      by 0s or mean/median by some other RFI excision program");
-  puts("-nharm <nh>         - Number of fundamental+harmonics to be removed");
-  puts("                      (def=1, i.e., only fundamental)");
-  puts("-T     <nsamp>      - number of time samples to avg before output (def=0)");
-  puts("-gm    <filename>   - For gmrt raw-data, name of the file that contains header information");
-  puts("-gmtstamp <filename> - For gmrt data, name of the file that contains time-stamp information");
-  puts("-ps    <filename>   - File-name of the output diagnostic plot (def=rficlean_output.ps)");
-  puts("-o     <filename>   - specify output filename (def=stdout)");
-  puts("-psrf  <F0>         - fundamental freq. (Hz) of pulsar to be protected (def=none)");
-  puts("-psrfdf <dF>        - Delta-frequency (on either side) of the fundamental & harmonic");
-  puts("-psrfbins <Nb>      - *Nbins (on either side) of the fundamental & harmonic");
-  puts("                      (*specify either psrfbins or psrfdf!)");
-  puts("                      frequencies to be protected (def=2)");
-  puts("-headerless         - do not broadcast resulting header (def=broadcast)");
-  puts("-bst   <bstart>     - Starting block number to be processed (def=1, i.e. start of file)");
+  puts("");
+  puts("General options:\n");
+  puts("       <filename>   - Input data file (def=stdin)");
+  puts("-t     <numsamps>   - Number of time samples in a block (def=4096)");
+  puts("-ft    <thres.>     - Threshold for FT-cleaning (def=6.0)");
+  puts("-white              - Whitten each spectrum before RFI excision");
+  puts("-nharm <nh>         - Number of fundamental+harmonics to be excised");
+  puts("                          (def=1, i.e., only fundamental)");
+  puts("-st    <thres.>     - Threshold for timeseries cleaning (def=10.0)");
+  puts("-rt    <thres.>     - Threshold for channel cleaning (def=4.0)");
+  puts("-clt   <thres.>     - Threshold for channel clipping (def=5.0)");
+  puts("-ps    <filename>   - Output diagnostic plot file-name (def=rficlean_output.ps)");
+  puts("-o     <filename>   - Output filterbank filename (def=stdout)");
+  puts("");
+  puts("To safeguard a known periodic signal:");
+  puts("-psrf  <F0>         - Fundamental freq. (Hz) of pulsar to be protected (def=none)");
+  puts("-psrfdf* <dF>       - Delta-freq. (on either side) of the fundamental & harmonics");
+  puts("                          to be protected (def=default psrfbins below)");
+  puts("-psrfbins* <Nb>     - *Nbins (on either side) of the fundamental & harmonics");
+  puts("                          to be protected (def=8)");
+  puts("              (*specify either psrfbins or psrfdf!)");
+  puts("");
+  puts("Add-on options:");
+  puts("-n     <numbits>    - Output number of bits (def=input)");
+  puts("-zeordm             - Zero-DM filtering");
+  puts("-pcl                - Assume that input data may have some parts replaced");
+  puts("                          by 0s or mean/median by other RFI excision program");
+  puts("-T     <nsamp>      - Number of time samples to avg before output (def=0)");
+  puts("-headerless         - Do not broadcast resulting header (def=broadcast)");
+  puts("-bst   <bstart>     - Starting block no. to be processed (def=1, =>start of file)");
   puts("-nbl   <nblocks>    - No. of blocks to be processed (def=till EoF)");
+  puts("");
+  puts("For GMRT data in native format:");
+  puts("-gm    <filename>   - File that contains header information");
+  puts("-gmtstamp <filename> - File that contains time-stamp information");
+  puts("");
+  puts("Options to control which RFI excision methods to skip (if at all):");
+  puts("-noRFIx             - Do not excise any RFI ");
+  puts("-noFDx              - Do not excise periodic RFI in the Fourier domain");
+  puts("-noTx               - Do not excise spiky RFI from channel/band-avged timeseries");
+  puts("-noSx               - Do not excise narrow-band RFI from spectra");
+  puts("-noMSx              - Do not excise narrow-band RFI using mean spectra");
+  puts("-noVSx              - Do not excise narrow-band RFI using variance spectra");
+  puts("-noSclip            - Do not clip above clip-threshold in individual spectra");
   puts("");
 }
 
@@ -99,7 +117,7 @@ void print_version(char *program, char *argument)
 {
   if ( (strings_equal(argument,"-v")) ||
        (strings_equal(argument,"--version"))) {
-    printf("PROGRAM: %s is part of rfiClean version: %.1f\n",program,RFICLEAN_VERSION);
+    printf("PROGRAM: %s is part of RFIClean version: %.1f\n",program,RFICLEAN_VERSION);
     exit(0);
   }
 }
@@ -112,6 +130,7 @@ void main (int argc, char *argv[])
 
   /* set up default global variables */
   obits=headerless=naddt=nsamp=0;
+  RFIx=rfiFDx=rfiTx=rfiSx=rfiMSx=rfiVSx=rfiSclip=true;
   ibits=0;
   fthresh = 6.0;
   forcefthresh = 1000.0;
@@ -146,6 +165,22 @@ void main (int argc, char *argv[])
       if (strings_equal(argv[i],"-t")) {
 	i++;
 	naddt=atoi(argv[i]);
+      } else if (strings_equal(argv[i],"-noRFIx")) {
+	RFIx = false;
+      } else if (strings_equal(argv[i],"-noFDx")) {
+	rfiFDx = false;
+      } else if (strings_equal(argv[i],"-noTx")) {
+	rfiTx = false;
+      } else if (strings_equal(argv[i],"-noSx")) {
+	rfiSx = false;
+	rfiMSx = false;
+	rfiVSx = false;
+      } else if (strings_equal(argv[i],"-noMSx")) {
+	rfiMSx = false;
+      } else if (strings_equal(argv[i],"-noVSx")) {
+	rfiVSx = false;
+      } else if (strings_equal(argv[i],"-noSclip")) {
+	rfiSclip = false;
       } else if (strings_equal(argv[i],"-normf")) {
 	fnorm=1;
       } else if (strings_equal(argv[i],"-normt")) {
@@ -186,6 +221,9 @@ void main (int argc, char *argv[])
       } else if (strings_equal(argv[i],"-st")) {
 	i++;
 	sthresh=atof(argv[i]);
+      } else if (strings_equal(argv[i],"-clt")) {
+	i++;
+	clipthresh=atof(argv[i]);
       } else if (strings_equal(argv[i],"-n")) {
 	i++;
 	obits=atoi(argv[i]);
@@ -238,24 +276,25 @@ void main (int argc, char *argv[])
     rficlean_help();
     exit(0);
   }
+  if(!rfiVSx && !rfiMSx) rfiSx = false;
 
   // some sanity checks
   if (psrf<1000000.0 && fthresh<4.0 && forcefthresh>0) fthresh=4.0;
   if (psrfdf>0.0 && psrfbins > 0){
-    printf ("Both psrfdf and psrfbins are specified!!");
-    printf ("Using the delta-F information from psrfdf.");
+    printf ("\nBoth psrfdf and psrfbins are specified!!\n");
+    printf ("Using the delta-F information from psrfdf.\n");
     psrfbins = -1;
   }
-  if (psrfdf<0.0 && psrfbins<0){
-    printf ("Nether psrfdf nor psrfbins is specified!!");
-    printf ("Using psrfbins=8");
+  if (psrf<100000.0 && psrfdf<0.0 && psrfbins<0){
+    printf ("\nNether psrfdf nor psrfbins is specified!!\n");
+    printf ("Using psrfbins=8\n");
     psrfbins = 8;
   }
 
   /* read in the header to establish what the input data are... */
   if (nifs>1){
-   printf ("Cannot process data with IFs more than 1.");
-   printf ("Halting !!");
+   printf ("Cannot process data with IFs more than 1.\n");
+   printf ("Halting !!\n");
    exit(0);
   }
   if (gm>0) {
