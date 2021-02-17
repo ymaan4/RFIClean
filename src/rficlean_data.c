@@ -350,5 +350,4 @@ void rficlean_data(FILE *input, FILE *output)
   free (chandata);
 
   printf (" Freed the buffers. All done!\n\n ");
-  printf ("%d seconds\n\n", time(NULL) - s);
 }

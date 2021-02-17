@@ -525,6 +525,7 @@ void cleanit(float *data, int nchans, long int nadd)
         if(wt[t] < 0.0){
           for (c=0; c<nchans; c++) data[nxc+c] = mspec[c];
         }
+    }
   }
 
  // sometimes gpt results might need additional checks
