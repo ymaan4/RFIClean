@@ -394,7 +394,7 @@ void cleanit(float *data, int nchans, long int nadd)
 
   for (channum=0; channum<nchans; channum++) coff[channum]=nadd*channum ;
 
-  #pragma omp parallel for private(channum,inc,isame,ii,jj) schedule(dynamic)
+  #pragma omp parallel for private(channum,inc,isame,ii,jj,thread_num) schedule(dynamic)
   for (channum=0; channum<nchans; channum++) {
     #ifdef _OPENMP
     thread_num = omp_get_thread_num();
@@ -497,7 +497,7 @@ void cleanit(float *data, int nchans, long int nadd)
 
 // Try clipping some channels in individual samples
   if(rfiSclip){
-    #pragma omp parallel for private(t,c,nxc) schedule(dynamic)
+    #pragma omp parallel for private(t,c,nxc,thread_num) schedule(dynamic)
     for (t=0; t<nadd; t++){
         #ifdef _OPENMP
         thread_num = omp_get_thread_num();
