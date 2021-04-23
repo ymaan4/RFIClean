@@ -14,6 +14,7 @@ if [ $# -lt 6 ] ; then
  echo " Usage: "
  echo " crp_rficlean_gm.sh  <out_filename>  <flag-file>  <N_parallel>  <in_filename>  <gm_info>  <extra-flag>" 
  echo " "
+ echo " Note: 'rficlean' should be in your PATH."
  echo "========================================================================================"
  exit 0
 fi
@@ -64,15 +65,15 @@ for (( c=1; c<=$Np; c++ )); do
   pdffile=${rtag}_part${count}.pdf
   #-------------------------------------
   if [ $count -eq 1 ]; then
-    cmd="/home/ymaan/bin/rficlean -t $block $flag -o  $outfile -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
+    cmd="rficlean -t $block $flag -o  $outfile -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
   elif [ $count -eq $Np ]; then
     combine_cmd="${combine_cmd} ${tempout}"
     remove_cmd="${remove_cmd} ${tempout}"
-    cmd="/home/ymaan/bin/rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -headerless -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
+    cmd="rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -headerless -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
   else
     combine_cmd="${combine_cmd} ${tempout}"
     remove_cmd="${remove_cmd} ${tempout}"
-    cmd="/home/ymaan/bin/rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb -headerless -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
+    cmd="rficlean -t $block $flag -o  $tempout -ps RFIClean_ps/$psfile  $infile -bst $bst -nbl $Nb -headerless -gm $gminfo_file $extra_flag  && ps2pdf  RFIClean_ps/$psfile RFIClean_ps/$pdffile  &&  rm RFIClean_ps/$psfile &"
   fi
   echo $cmd
   eval $cmd
