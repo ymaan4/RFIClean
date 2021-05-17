@@ -9,17 +9,17 @@ long byte_offset;
 int headerless,obits,iflip,nred, iwhite,nints,nsub,maxhist,numhist,nsubchans,tnorm,fnorm,igetstat,nharm,pcl,nsect,zerodm,bl_start,nblocks;
 char inpfile[128], outfile[128], gminfofile[128],gmhdrfile[128],psfile[100];
 FILE *input, *output, *gminfo, *gmhdr;
-double tempra,tempdec, psrf, psrfdf, *last_mspec, *wrms, *wmean, *ai;
+double tempra,tempdec, psrf, psrfdf, *last_mspec, **wrms, **wmean, **ai;
 float forcefthresh,fthresh,rthresh,sthresh,last_tvar,last_fvar,chanfrac,sampfrac,clipthresh;
 float *fftstat, *chanstat, *predist, *xpredist, *postdist, *xpostdist, *finaldist, *xfinaldist ;
 double *tfvar, *tfmean,meanvar,rmsvar ;
-double *chandata, *mspec, *rspec, *vspec, *wspec, *wt;
+double **chandata, *mspec, *rspec, *vspec, *wspec, *wt;
 long int *coff;
 bool RFIx,rfiFDx,rfiTx,rfiSx,rfiMSx,rfiVSx,rfiSclip;
 
-fftw_complex *in;
-fftw_complex *out;
-fftw_plan fplan, bplan;
+fftw_complex **in;
+fftw_complex **out;
+fftw_plan *fplan, *bplan;
 
 
 int strings_equal (char *string1, char *string2);

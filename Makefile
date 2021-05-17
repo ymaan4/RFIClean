@@ -6,8 +6,8 @@ BINDIR=bin
 MYBIN=/home/maan/pulsar_softwares/bin/
 
 CC=gcc
-CFLAGS=-I$(IDIR) -Wno-unused-result -O3 -march=native
-LIBS=-lm -lfftw3 -lcpgplot
+CFLAGS=-I$(IDIR) -Wno-unused-result -O3 -march=native -fopenmp
+LIBS=-lm -lfftw3_threads -lfftw3 -lcpgplot
 
 _DEPS = header.h  rficlean.h  version.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
